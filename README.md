@@ -26,7 +26,7 @@ def main() raises:
 
 ## Install
 
-Requires Mojo 1.1 on Linux and `libz.so.1` (present on every desktop and server distro;
+Requires Mojo 1.2 on Linux and `libz.so.1` (present on every desktop and server distro;
 no `-dev` package needed). Builds on Mojo 1.2 nightly too.
 
 | Way | Command |
