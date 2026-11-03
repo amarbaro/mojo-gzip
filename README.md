@@ -1,6 +1,9 @@
 # mojo-gzip
 
-[![CI](https://github.com/amarbaro/mojo-gzip/actions/workflows/ci.yml/badge.svg)](https://github.com/amarbaro/mojo-gzip/actions/workflows/ci.yml)
+<!-- badges -->
+[![ci](https://github.com/amarbaro/mojo-gzip/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/amarbaro/mojo-gzip/actions/workflows/ci.yml) [![latest release](https://img.shields.io/github/v/release/amarbaro/mojo-gzip)](https://github.com/amarbaro/mojo-gzip/releases/latest) [![license](https://img.shields.io/github/license/amarbaro/mojo-gzip)](https://github.com/amarbaro/mojo-gzip/blob/main/LICENSE)
+<!-- /badges -->
+
 
 Read and write gzip, zlib and raw deflate from Mojo, plus crc32 and adler32. It calls the
 system `libz.so.1`, loaded at run time, so `mojo run` and `mojo build` need no linker flag.
