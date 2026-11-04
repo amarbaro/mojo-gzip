@@ -1,6 +1,6 @@
 """gzip, zlib and raw deflate for Mojo through the system libz.so.1, loaded at run time, so
 `mojo run` and `mojo build` need no linker flag."""
-from std.ffi import OwnedDLHandle, external_call
+from std.ffi import OwnedDLHandle, external_call, _Global
 
 comptime _Z_STREAM = 112  # sizeof(z_stream) on 64-bit Linux
 comptime _VERSION = "1.2.11"  # oldest ABI accepted; libz only checks the major digit
@@ -175,16 +175,30 @@ def decompress(data: Span[UInt8, _], format: String = "auto") raises -> List[UIn
     return out^
 
 
+def _open_libz() -> OwnedDLHandle:
+    try:
+        return OwnedDLHandle("libz.so.1")
+    except:
+        return OwnedDLHandle(unsafe_uninitialized=True)   # falsy: the checksums return 0
+
+
+comptime _LIBZ = _Global["gzip_libz", _open_libz]   # opened once per process, not per call
+
+
+def _sum[name: StaticString](data: Span[UInt8, _], start: UInt32) -> UInt32:
+    try:
+        ref z = _LIBZ.get_or_create_ptr()[]
+        if z:
+            return UInt32(z.call[name, UInt](UInt(start), data.unsafe_ptr(), UInt32(len(data))))
+    except:
+        pass
+    return 0
+
+
 def crc32(data: Span[UInt8, _], start: UInt32 = 0) -> UInt32:
     """CRC-32 as gzip, zip and PNG use it; equals Python zlib.crc32. Chain with start."""
-    try:
-        return UInt32(OwnedDLHandle("libz.so.1").call["crc32", UInt](UInt(start), data.unsafe_ptr(), UInt32(len(data))))
-    except:
-        return 0
+    return _sum["crc32"](data, start)
 
 
 def adler32(data: Span[UInt8, _], start: UInt32 = 1) -> UInt32:
-    try:
-        return UInt32(OwnedDLHandle("libz.so.1").call["adler32", UInt](UInt(start), data.unsafe_ptr(), UInt32(len(data))))
-    except:
-        return 0
+    return _sum["adler32"](data, start)
