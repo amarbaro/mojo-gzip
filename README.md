@@ -4,39 +4,38 @@
 [![ci](https://github.com/amarbaro/mojo-gzip/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/amarbaro/mojo-gzip/actions/workflows/ci.yml) [![latest release](https://img.shields.io/github/v/release/amarbaro/mojo-gzip)](https://github.com/amarbaro/mojo-gzip/releases/latest) [![license](https://img.shields.io/github/license/amarbaro/mojo-gzip)](https://github.com/amarbaro/mojo-gzip/blob/main/LICENSE)
 <!-- /badges -->
 
+<!-- install -->
+Install: `pixi add mojo-gzip` once published. For now: `git clone https://github.com/amarbaro/mojo-gzip`, then `mojo run -I mojo-gzip/src app.mojo`.
+
+```mojo
+from std.os import remove
+from gzip import GzFile, compress, crc32
+
+
+def main() raises:
+    var data = List[UInt8](length=1 << 20, fill=65)  # 1 MiB of "A"
+    var f = open("quickstart.gz", "w")
+    f.write_bytes(compress(data, 6, "gzip"))
+    var g = GzFile("quickstart.gz")  # streams: memory stays flat
+    var buf = List[UInt8](length=1 << 17, fill=0)
+    var c = UInt32(0)
+    var n = g.read(buf)
+    while n > 0:
+        c = crc32(Span(buf)[:n], c)
+        n = g.read(buf)
+    g.close()  # raises if the file was truncated
+    remove("quickstart.gz")
+    print("crc matches:", c == crc32(data))
+```
+<!-- /install -->
 
 Read and write gzip, zlib and raw deflate from Mojo, plus crc32 and adler32. It calls the
 system `libz.so.1`, loaded at run time, so `mojo run` and `mojo build` need no linker flag.
 159 lines. Every result is checked against Python `gzip`/`zlib` on 20 fixtures, including
 truncated, bit-flipped and multi-member files.
 
-```mojo
-from gzip import GzFile, read_all, compress, decompress, crc32
-
-def main() raises:
-    var g = GzFile("big.log.gz")                 # streams: memory stays flat
-    var buf = List[UInt8](length=1 << 17, fill=0)
-    var c = UInt32(0)
-    while True:
-        var n = g.read(buf)
-        if n == 0:
-            break
-        c = crc32(Span(buf)[:n], c)
-    g.close()                                    # raises if the file was truncated
-    var z = compress("hello".as_bytes(), 9, "zlib")
-    print(len(decompress(z)), c)
-```
-
-## Install
-
 Requires Mojo 1.2 on Linux and `libz.so.1` (present on every desktop and server distro;
 no `-dev` package needed). Builds on Mojo 1.2 nightly too.
-
-| Way | Command |
-|---|---|
-| Source path | `mojo run -I path/to/mojo-gzip/src app.mojo` |
-| Precompiled | `mojo precompile src/gzip -o gzip.mojoc` |
-| Vendor | copy `src/gzip/` into your project |
 
 ## What you get
 
