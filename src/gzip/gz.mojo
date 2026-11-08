@@ -1,7 +1,11 @@
 """gzip, zlib and raw deflate for Mojo through the system libz.so.1, loaded at run time, so
 `mojo run` and `mojo build` need no linker flag."""
-from std.ffi import OwnedDLHandle, external_call, _Global
+from std.ffi import OwnedDLHandle, RTLD, external_call, _Global
 
+# RTLD_DEEPBIND: libz resolves its own calls (gzclose -> gzclose_r, inflate, crc32) inside itself. Without it, a
+# Mojo nightly binary (every one loads libLLVM.so, which exports its own, different zlib) binds them to libLLVM's
+# copy and crashes on an empty file. Harmless on stable. See .work/nightly-fix/upstream-gzip.md.
+comptime _DLOPEN = RTLD.NOW | 0x8
 comptime _Z_STREAM = 112  # sizeof(z_stream) on 64-bit Linux
 comptime _VERSION = "1.2.11"  # oldest ABI accepted; libz only checks the major digit
 comptime Z_OK = 0
@@ -21,7 +25,7 @@ struct GzFile(Movable):
 
     def __init__(out self, path: String, mode: String = "rb") raises:
         """mode: "rb", or "wb"/"ab" with an optional level digit ("wb9")."""
-        self.z = OwnedDLHandle("libz.so.1")
+        self.z = OwnedDLHandle("libz.so.1", _DLOPEN)
         self.path = path.copy()
         self.bad = False
         var p = path.copy()
@@ -112,7 +116,7 @@ def _get32(s: List[UInt8], off: Int) -> Int:
 
 def compress(data: Span[UInt8, _], level: Int = 6, format: String = "gzip") raises -> List[UInt8]:
     """One deflate pass into an output sized by deflateBound. format: "gzip", "zlib" or "raw"."""
-    var z = OwnedDLHandle("libz.so.1")
+    var z = OwnedDLHandle("libz.so.1", _DLOPEN)
     var bits = 31 if format == "gzip" else (15 if format == "zlib" else -15)
     var s = List[UInt8](length=_Z_STREAM, fill=0)
     var v = String(_VERSION)
@@ -136,7 +140,7 @@ def compress(data: Span[UInt8, _], level: Int = 6, format: String = "gzip") rais
 def decompress(data: Span[UInt8, _], format: String = "auto") raises -> List[UInt8]:
     """Inflates gzip (every concatenated member), zlib ("auto" tells them apart) or "raw".
     Raises on corrupt, truncated or trailing non-gzip data."""
-    var z = OwnedDLHandle("libz.so.1")
+    var z = OwnedDLHandle("libz.so.1", _DLOPEN)
     var bits = 47 if format == "auto" else (31 if format == "gzip" else (15 if format == "zlib" else -15))
     var s = List[UInt8](length=_Z_STREAM, fill=0)
     var v = String(_VERSION)
@@ -177,7 +181,7 @@ def decompress(data: Span[UInt8, _], format: String = "auto") raises -> List[UIn
 
 def _open_libz() -> OwnedDLHandle:
     try:
-        return OwnedDLHandle("libz.so.1")
+        return OwnedDLHandle("libz.so.1", _DLOPEN)
     except:
         return OwnedDLHandle(unsafe_uninitialized=True)   # falsy: the checksums return 0
 
