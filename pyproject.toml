@@ -1,6 +1,6 @@
 [project]
 name = "mojo-gzip"
-version = "0.1.3"
+version = "0.1.4"
 description = "gzip, zlib and raw deflate for Mojo through the system libz, plus crc32 and adler32"
 license = "Apache-2.0"
 requires-python = ">=3.11,<3.15"
