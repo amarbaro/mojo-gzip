@@ -34,3 +34,12 @@ member, and names its failures: truncated input, corrupt input, trailing data. `
 
 Both sides run the same libz, so speed equals Python's: `scripts/bench.sh` inflates 21.8 MB in
 15 to 17 ms (Python 19 to 20 ms) and deflates in 3 ms on both.
+
+## libz symbol interposition on the Mojo 1.3 nightly
+
+Every binary built by the 1.3 nightly loads `libLLVM.so`, which exports its own (different) zlib. The system
+`libz.so.1` calls itself through the PLT (`gzclose` -> `gzclose_r`, `inflate`, `crc32`), so those calls bound to
+libLLVM's copy and `gzclose` crashed on an empty file. `OwnedDLHandle("libz.so.1", RTLD.NOW | RTLD_DEEPBIND)` makes libz
+use its own symbols; it is harmless on 1.2. Under `mojo run` on the nightly the JIT process has libz loaded already, the
+flag cannot apply, and `deflateInit2_` fails (Z_STREAM_ERROR): build, then run. Upstream draft:
+`.work/nightly-fix/upstream-gzip.md` in mojo-libs.

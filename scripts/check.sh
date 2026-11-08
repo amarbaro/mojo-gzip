@@ -40,13 +40,23 @@ done
 echo "roundtrip: $w files written by impl inflate under Python to the source"
 if [[ $CASES == .work/cases ]]; then
   $M build -I src tests/stream.mojo -o .work/stream 2>.work/build.err || { echo "FAIL build: tests/stream.mojo"; cat .work/build.err; exit 1; }
-  rss=$(python3 -I -c 'import resource, subprocess, sys
+  maxrss() { python3 -I -c 'import resource, subprocess, sys
 subprocess.run(sys.argv[1:-1], stdout=open(sys.argv[-1], "w"), check=True)
-print(resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss)' .work/stream $F/zeros.gz .work/stream.out) || { echo "FAIL stream: .work/stream crashed"; exit 1; }
+print(resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss)' "$@"; }
+  # peak RSS above an empty Mojo program: the floor is the toolchain's (11.6 MB on 1.2, 66.6 MB on the 1.3 nightly,
+  # which loads libLLVM.so into every binary); the bar is the old 30000 KB absolute minus the 1.2 floor
+  $M build -I src tests/empty.mojo -o .work/empty 2>.work/build.err || { echo "FAIL build: tests/empty.mojo"; cat .work/build.err; exit 1; }
+  floor=$(maxrss .work/empty .work/empty.out) || { echo "FAIL stream: .work/empty crashed"; exit 1; }
+  rss=$(maxrss .work/stream $F/zeros.gz .work/stream.out) || { echo "FAIL stream: .work/stream crashed"; exit 1; }
+  rss=$((rss - floor))
   [[ $(cat .work/stream.out) == "$($O crc $F/zeros)" ]] || { echo "FAIL stream: $(cat .work/stream.out)"; exit 1; }
-  (( rss < 30000 )) || { echo "FAIL stream: peak RSS ${rss} KB for 50 MB inflated, want < 30000"; exit 1; }
-  echo "stream: 50 MB inflated chunk by chunk, peak RSS ${rss} KB"
-  $M run -I src tests/api.mojo || { echo "FAIL api: tests/api.mojo"; exit 1; }
-  $M run -I src examples/quickstart.mojo > /dev/null || { echo "FAIL example: examples/quickstart.mojo"; exit 1; }
+  (( rss < 18000 )) || { echo "FAIL stream: peak RSS ${rss} KB above an empty program for 50 MB inflated, want < 18000"; exit 1; }
+  echo "stream: 50 MB inflated chunk by chunk, peak RSS ${rss} KB above an empty program"
+  # built, not `mojo run`: on the 1.3 nightly the JIT process has the system libz loaded before ours (RTLD_DEEPBIND cannot
+  # apply to an already-loaded library) and deflateInit2_ returns Z_STREAM_ERROR; see .work/nightly-fix/upstream-gzip.md
+  $M build -I src tests/api.mojo -o .work/api 2>.work/build.err || { echo "FAIL build: tests/api.mojo"; cat .work/build.err; exit 1; }
+  .work/api || { echo "FAIL api: tests/api.mojo"; exit 1; }
+  $M build -I src examples/quickstart.mojo -o .work/quickstart 2>.work/build.err || { echo "FAIL build: examples/quickstart.mojo"; cat .work/build.err; exit 1; }
+  .work/quickstart > /dev/null || { echo "FAIL example: examples/quickstart.mojo"; exit 1; }
 fi
 echo "PASS all"
