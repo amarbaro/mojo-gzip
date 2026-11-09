@@ -5,7 +5,8 @@
 <!-- /badges -->
 
 <!-- install -->
-Install: `pixi add mojo-gzip` once published. For now: `git clone https://github.com/amarbaro/mojo-gzip`, then `mojo run -I mojo-gzip/src app.mojo`.
+Install: `pixi workspace channel add https://conda.modular.com/max https://prefix.dev/amarbaro/amarbaro`, then `pixi add mojo-gzip` (import `gzip`). From source: `git clone https://github.com/amarbaro/mojo-gzip`, then `mojo run -I mojo-gzip/src app.mojo`.
+Toolchains: Mojo 1.2 stable, and the nightly 1.3.0.dev2026110805 in the weekly [mojo-libs](https://github.com/amarbaro/mojo-libs) matrix (36 libraries on stable, 35 on nightly).
 
 ```mojo
 from std.os import remove
@@ -35,7 +36,7 @@ system `libz.so.1`, loaded at run time, so `mojo run` and `mojo build` need no l
 truncated, bit-flipped and multi-member files.
 
 Requires Mojo 1.2 on Linux and `libz.so.1` (present on every desktop and server distro;
-no `-dev` package needed). Builds on Mojo 1.2 nightly too.
+no `-dev` package needed).
 
 ## What you get
 
@@ -55,6 +56,8 @@ API: [docs/api.md](docs/api.md). Design: [docs/design.md](docs/design.md).
 
 `scripts/bench.sh` (`tests/bench.mojo` vs `tools/bench_oracle.py`): 21.8 MB inflated in 15 to 17 ms
 against Python 19 to 20 ms, deflate 3 ms on both; same libz underneath. Streaming 50 MB of output through `GzFile` peaks at 12 MB (gated below 30 MB).
+
+**Limits:** Needs `libz.so.1` at run time. Speed equals Python's, because both call the same libz. The `z_stream` field offsets are those of x86-64 and aarch64.
 
 ## Checks
 
